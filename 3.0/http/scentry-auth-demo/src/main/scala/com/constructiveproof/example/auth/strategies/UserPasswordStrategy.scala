@@ -1,16 +1,23 @@
 package com.constructiveproof.example.auth.strategies
 
-import org.scalatra.ScalatraBase
+import org.scalatra.{Cookie, CookieOptions, ScalatraBase}
 import org.scalatra.auth.ScentryStrategy
 import com.constructiveproof.example.models.User
 import jakarta.servlet.http.{HttpServletRequest, HttpServletResponse}
 import org.slf4j.{Logger, LoggerFactory}
+import slick.jdbc.MySQLProfile.api.*
 
-class UserPasswordStrategy(protected val app: ScalatraBase)
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
+
+class UserPasswordStrategy(protected val app: ScalatraBase, val db: Database)
                           (implicit request: HttpServletRequest, response: HttpServletResponse)
   extends ScentryStrategy[User] {
 
   val logger: Logger = LoggerFactory.getLogger(getClass)
+
+  val COOKIE_KEY = "rememberMe"
+  private val oneWeek: Int =  24 * 3600
 
   override def name: String = "UserPassword"
 
@@ -32,6 +39,7 @@ class UserPasswordStrategy(protected val app: ScalatraBase)
    *  it's found.
    */
   def authenticate()(implicit request: HttpServletRequest, response: HttpServletResponse): Option[User] = {
+    println("Auth1: loging with userID, userPW")
     logger.info("UserPasswordStrategy: attempting authentication")
 
     if(login == "foo" && password == "bar") {
@@ -42,6 +50,8 @@ class UserPasswordStrategy(protected val app: ScalatraBase)
       None
     }
   }
+
+  def uuid(): String = java.util.UUID.randomUUID().toString
 
   /**
    * What should happen if the user is currently not authenticated?

@@ -4,12 +4,13 @@ import org.scalatra.auth.{ScentryConfig, ScentrySupport}
 import com.constructiveproof.example.models.User
 import org.scalatra.ScalatraBase
 import org.slf4j.{Logger, LoggerFactory}
-import com.constructiveproof.example.auth.strategies.{RememberMeStrategy, UserPasswordStrategy}
-
+import com.constructiveproof.example.auth.strategies.{RememberMeStrategy, SessionLoginStrategy, UserPasswordStrategy}
+import slick.jdbc.MySQLProfile.api.*
 
 trait AuthenticationSupport extends ScalatraBase with ScentrySupport[User] {
   self: ScalatraBase =>
 
+  def db: Database
   protected def fromSession: PartialFunction[String, User] = { case id: String => User(id)  }
   protected def toSession: PartialFunction[User, String] = { case usr: User => usr.id }
 
@@ -20,9 +21,16 @@ trait AuthenticationSupport extends ScalatraBase with ScentrySupport[User] {
   val logger: Logger = LoggerFactory.getLogger(getClass)
 
   protected def requireLogin(): Unit = {
+    println("Check Session Login .. ")
     if (!isAuthenticated) {
-      redirect(scentryConfig.login)
+//      redirect(scentryConfig.login)
+      scentry.strategies("MixedAuth").authenticate() match
+        case None => redirect(scentryConfig.login)
+        case Some(user) =>
+          println("Already authenticated with session user : " + user)
+          scentry.authenticate()
     }
+
   }
 
   /**
@@ -31,7 +39,8 @@ trait AuthenticationSupport extends ScalatraBase with ScentrySupport[User] {
    */
   override protected def configureScentry(): Unit = {
     scentry.unauthenticated {
-      scentry.strategies("UserPassword").unauthenticated()
+//      scentry.strategies("UserPassword").unauthenticated()
+      scentry.strategies("MixedAuth").unauthenticated()
     }
   }
 
@@ -40,8 +49,9 @@ trait AuthenticationSupport extends ScalatraBase with ScentrySupport[User] {
    * progressively use all registered strategies to log the user in, falling back if necessary.
    */
   override protected def registerAuthStrategies(): Unit = {
-    scentry.register("UserPassword", app => new UserPasswordStrategy(app))
-    scentry.register("RememberMe", app => new RememberMeStrategy(app))
+//    scentry.register("UserPassword", app => new UserPasswordStrategy(app, db))
+//    scentry.register("RememberMe", app => new RememberMeStrategy(app, db))
+    scentry.register("MixedAuth", app => new SessionLoginStrategy(app, db))
   }
 
 }

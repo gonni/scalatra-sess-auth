@@ -5,17 +5,21 @@ import org.scalatra.auth.ScentryStrategy
 import com.constructiveproof.example.models.User
 import jakarta.servlet.http.{HttpServletRequest, HttpServletResponse}
 import org.slf4j.{Logger, LoggerFactory}
+import slick.jdbc.MySQLProfile.api.*
 
-class RememberMeStrategy(protected val app: ScalatraBase)
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
+
+class RememberMeStrategy(protected val app: ScalatraBase, val db: Database)
                         (implicit request: HttpServletRequest, response: HttpServletResponse)
   extends ScentryStrategy[User] {
-
+//  def db: Database
   val logger: Logger = LoggerFactory.getLogger(getClass)
 
   override def name: String = "RememberMe"
 
   val COOKIE_KEY = "rememberMe"
-  private val oneWeek: Int = 7 * 24 * 3600
+  private val oneWeek: Int =  24 * 3600
 
   /***
     * Grab the value of the rememberMe cookie token.
@@ -41,9 +45,21 @@ class RememberMeStrategy(protected val app: ScalatraBase)
     * earlier ("foobar") and accept it if so.
     */
   def authenticate()(implicit request: HttpServletRequest, response: HttpServletResponse): Option[User] = {
-    logger.info("RememberMeStrategy: attempting authentication")
-    if(tokenVal == "foobar") Some(User("foo"))
-    else None
+//    logger.info("RememberMeStrategy: attempting authentication")
+//    if(tokenVal == "foobar") Some(User("foo"))
+//    else None
+
+    println("Auth2 => use session key from DB")
+    import com.constructiveproof.example.data.AuthSessionRepo._
+    val qry = authSessionQuery.filter(_.sessKey === tokenVal).map(_.userId)
+
+    val result = Await.result(db.run(qry.result.headOption), Duration.Inf)
+    println("Session From DB :" + result)
+    result match {
+      case Some(userId) => Some(User(userId))
+      case _ => None
+    }
+
   }
 
   /**
@@ -65,8 +81,15 @@ class RememberMeStrategy(protected val app: ScalatraBase)
     if (winningStrategy == "RememberMe" ||
       (winningStrategy == "UserPassword" && checkbox2boolean(app.params.get("rememberMe").getOrElse("").toString))) {
 
-      val token = "foobar"
+//      val token = "foobar"
+      val token = uuid()
+      println("Set cookie :" + token)
       app.cookies.set(COOKIE_KEY, token)(CookieOptions(maxAge = oneWeek, path = "/"))
+
+//      // --
+//      import com.constructiveproof.example.data.AuthSessionRepo._
+//      val insertResult = Await.result(db.run(insertNewSession(token, user.id)), Duration.Inf)
+//      println("Insert Result :" + insertResult)
     }
   }
 
@@ -74,12 +97,21 @@ class RememberMeStrategy(protected val app: ScalatraBase)
    * Run this code before logout, to clean up any leftover database state and delete the rememberMe token cookie.
    */
   override def beforeLogout(user: User)(implicit request: HttpServletRequest, response: HttpServletResponse): Unit = {
+    //
+    import com.constructiveproof.example.data.AuthSessionRepo._
+    deleteSessionKey(tokenVal)
+    println("deleted token in db => " + tokenVal)
+
+    //
     logger.info("rememberMe: beforeLogout")
     if (user != null){
       user.forgetMe()
     }
     app.cookies.delete(COOKIE_KEY)(CookieOptions(path = "/"))
+
   }
+
+  def uuid(): String = java.util.UUID.randomUUID().toString
 
 
   /**

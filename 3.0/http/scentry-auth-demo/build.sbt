@@ -12,6 +12,9 @@ libraryDependencies ++= Seq(
   "ch.qos.logback"          % "logback-classic"          % "1.4.11"         % Provided,
   "org.eclipse.jetty"       %  "jetty-webapp"            % "11.0.18"        % Provided,
   "jakarta.servlet"         %  "jakarta.servlet-api"     % "5.0.0"          % Provided,
+  "com.typesafe.slick" %% "slick" % "3.5.1",
+  "com.h2database" % "h2"                  % "2.2.224",
+  "mysql" % "mysql-connector-java" % "8.0.27",
 )
 
 enablePlugins(JettyPlugin)

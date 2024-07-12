@@ -2,8 +2,9 @@ package com.constructiveproof.example
 
 import org.scalatra._
 import com.constructiveproof.example.auth.AuthenticationSupport
+import slick.jdbc.MySQLProfile.api._
 
-class SessionsController extends ScalatraServlet with AuthenticationSupport {
+class SessionsController(val db: Database) extends ScalatraServlet with AuthenticationSupport {
 
   before("/new") {
     logger.info("SessionsController: checking whether to run RememberMeStrategy: " + !isAuthenticated)
